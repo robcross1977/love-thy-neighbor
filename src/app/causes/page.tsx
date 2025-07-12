@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Heart,
 } from "lucide-react";
+import Image from "next/image";
 
 interface LawnCareRequest {
   id: string;
@@ -49,11 +50,7 @@ export default function VolunteerPage() {
     "all"
   );
 
-  useEffect(() => {
-    loadLawnCareRequests();
-  }, [filter]);
-
-  const loadLawnCareRequests = async () => {
+  const loadLawnCareRequests = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -73,7 +70,11 @@ export default function VolunteerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    loadLawnCareRequests();
+  }, [loadLawnCareRequests]);
 
   const handleVolunteer = () => {
     if (!session?.user) {
@@ -344,9 +345,11 @@ export default function VolunteerPage() {
                           {/* Photo */}
                           {request.photoUrl && (
                             <div className="md:col-span-1">
-                              <img
+                              <Image
                                 src={request.photoUrl}
                                 alt="Lawn care request"
+                                width={300}
+                                height={192}
                                 className="w-full h-48 object-cover rounded-xl shadow-md"
                               />
                             </div>

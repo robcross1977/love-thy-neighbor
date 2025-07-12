@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,6 +14,7 @@ import {
   User,
   AlertCircle,
 } from "lucide-react";
+import Image from "next/image";
 
 interface HelpRequest {
   id: string;
@@ -47,6 +48,18 @@ export default function AdminPage() {
   >("pending");
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const loadRequests = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/admin/requests?filter=${filter}`);
+      const data = await response.json();
+      setRequests(data.requests || []);
+    } catch (error) {
+      console.error("Error loading requests:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
+
   useEffect(() => {
     // Check if user is admin
     const checkAdminStatus = async () => {
@@ -75,25 +88,13 @@ export default function AdminPage() {
     };
 
     checkAdminStatus();
-  }, [session, status, router]);
-
-  const loadRequests = async () => {
-    try {
-      const response = await fetch(`/api/admin/requests?filter=${filter}`);
-      const data = await response.json();
-      setRequests(data.requests || []);
-    } catch (error) {
-      console.error("Error loading requests:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [session, status, router, loadRequests]);
 
   useEffect(() => {
     if (isAdmin) {
       loadRequests();
     }
-  }, [filter, isAdmin]);
+  }, [filter, isAdmin, loadRequests]);
 
   const handleApprove = async (requestId: string) => {
     try {
@@ -301,9 +302,11 @@ export default function AdminPage() {
 
                   {request.photoUrl && (
                     <div className="mb-4">
-                      <img
+                      <Image
                         src={request.photoUrl}
                         alt="Request photo"
+                        width={128}
+                        height={128}
                         className="w-32 h-32 object-cover rounded-lg"
                       />
                     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,6 +21,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import Image from "next/image";
 
 interface HelpRequest {
   id: string;
@@ -59,18 +60,7 @@ export default function MyRequestsPage() {
     "all" | "pending" | "approved" | "open" | "completed"
   >("all");
 
-  useEffect(() => {
-    if (status === "loading") return;
-
-    if (!session?.user) {
-      router.push("/api/auth/signin");
-      return;
-    }
-
-    loadMyRequests();
-  }, [session, status, router, filter]);
-
-  const loadMyRequests = async () => {
+  const loadMyRequests = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/my-requests?filter=${filter}`);
@@ -86,7 +76,18 @@ export default function MyRequestsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (!session?.user) {
+      router.push("/api/auth/signin");
+      return;
+    }
+
+    loadMyRequests();
+  }, [session, status, router, loadMyRequests]);
 
   const handleApproveHelper = async (requestId: string, responseId: string) => {
     try {
@@ -475,9 +476,11 @@ export default function MyRequestsPage() {
                           {/* Photo */}
                           {request.photoUrl && (
                             <div className="md:col-span-1">
-                              <img
+                              <Image
                                 src={request.photoUrl}
                                 alt="Request photo"
+                                width={300}
+                                height={192}
                                 className="w-full h-48 object-cover rounded-xl shadow-md"
                               />
                             </div>

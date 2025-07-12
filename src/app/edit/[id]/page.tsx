@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,11 +11,12 @@ import {
   Phone,
   Upload,
   X,
-  Image,
+  Image as ImageIcon,
   Scissors,
   Calendar,
   ArrowLeft,
 } from "lucide-react";
+import Image from "next/image";
 import React from "react";
 import Link from "next/link";
 
@@ -106,6 +107,60 @@ export default function EditRequestPage({
 
   const watchedDescription = watch("description");
 
+  const loadRequestData = useCallback(
+    async (id: string) => {
+      try {
+        const response = await fetch(`/api/help-requests/${id}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load request");
+        }
+
+        const request = data.request;
+        setOriginalRequest(request);
+
+        // Parse the notes field to extract form data
+        const notesData = parseNotesField(request.notes || "");
+
+        // Set form values
+        setValue("title", request.title);
+        setValue("description", request.description);
+        setValue("address", request.address);
+        setValue("latitude", request.latitude);
+        setValue("longitude", request.longitude);
+        setValue("phone", request.phoneNumber || "");
+        setValue("urgency", request.urgency.toLowerCase());
+
+        // Set parsed values from notes
+        setValue("yardSize", notesData.yardSize || "medium");
+        setValue("serviceType", notesData.serviceType || "mowing-only");
+        setValue("frequency", notesData.frequency || "one-time");
+        setValue("hasEquipment", notesData.hasEquipment || "no");
+        setValue("preferredTime", notesData.preferredTime || "");
+        setValue("notes", notesData.additionalNotes || "");
+
+        // Set selected states for UI
+        setSelectedYardSize(notesData.yardSize || "medium");
+        setSelectedServiceType(notesData.serviceType || "mowing-only");
+        setSelectedFrequency(notesData.frequency || "one-time");
+        setSelectedUrgency(request.urgency.toLowerCase());
+
+        // Set photo if exists
+        if (request.photoUrl) {
+          setPhotoPreview(request.photoUrl);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading request:", error);
+        alert("Failed to load request data");
+        router.push("/my-requests");
+      }
+    },
+    [router, setValue]
+  );
+
   // Load existing request data
   useEffect(() => {
     if (status === "loading") return;
@@ -116,58 +171,7 @@ export default function EditRequestPage({
     }
 
     loadRequestData(resolvedParams.id);
-  }, [session, status, router, resolvedParams.id]);
-
-  const loadRequestData = async (id: string) => {
-    try {
-      const response = await fetch(`/api/help-requests/${id}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to load request");
-      }
-
-      const request = data.request;
-      setOriginalRequest(request);
-
-      // Parse the notes field to extract form data
-      const notesData = parseNotesField(request.notes || "");
-
-      // Set form values
-      setValue("title", request.title);
-      setValue("description", request.description);
-      setValue("address", request.address);
-      setValue("latitude", request.latitude);
-      setValue("longitude", request.longitude);
-      setValue("phone", request.phoneNumber || "");
-      setValue("urgency", request.urgency.toLowerCase());
-
-      // Set parsed values from notes
-      setValue("yardSize", notesData.yardSize || "medium");
-      setValue("serviceType", notesData.serviceType || "mowing-only");
-      setValue("frequency", notesData.frequency || "one-time");
-      setValue("hasEquipment", notesData.hasEquipment || "no");
-      setValue("preferredTime", notesData.preferredTime || "");
-      setValue("notes", notesData.additionalNotes || "");
-
-      // Set selected states for UI
-      setSelectedYardSize(notesData.yardSize || "medium");
-      setSelectedServiceType(notesData.serviceType || "mowing-only");
-      setSelectedFrequency(notesData.frequency || "one-time");
-      setSelectedUrgency(request.urgency.toLowerCase());
-
-      // Set photo if exists
-      if (request.photoUrl) {
-        setPhotoPreview(request.photoUrl);
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading request:", error);
-      alert("Failed to load request data");
-      router.push("/my-requests");
-    }
-  };
+  }, [session, status, router, resolvedParams.id, loadRequestData]);
 
   const parseNotesField = (notes: string) => {
     const data: Record<string, string> = {};
@@ -524,10 +528,11 @@ export default function EditRequestPage({
                   ) : (
                     <div className="relative">
                       <div className="relative w-full h-48 border-2 border-gray-300 rounded-lg overflow-hidden">
-                        <img
+                        <Image
                           src={photoPreview}
                           alt="Upload preview"
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                         <button
                           type="button"
@@ -538,7 +543,7 @@ export default function EditRequestPage({
                         </button>
                       </div>
                       <p className="mt-2 text-sm text-gray-600 flex items-center">
-                        <Image className="w-4 h-4 mr-1" />
+                        <ImageIcon className="w-4 h-4 mr-1" />
                         {uploadedPhoto?.name || "Current photo"}
                       </p>
                     </div>

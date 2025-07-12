@@ -9,11 +9,12 @@ import {
   Phone,
   Upload,
   X,
-  Image,
+  Image as ImageIcon,
   Scissors,
   Calendar,
   Home,
 } from "lucide-react";
+import Image from "next/image";
 import React from "react";
 
 const lawnCareRequestSchema = z.object({
@@ -353,10 +354,11 @@ export default function CreateRequestPage() {
               ) : (
                 <div className="relative">
                   <div className="relative w-full h-48 border-2 border-gray-400 rounded-lg overflow-hidden">
-                    <img
+                    <Image
                       src={photoPreview}
                       alt="Upload preview"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                     <button
                       type="button"
@@ -367,7 +369,7 @@ export default function CreateRequestPage() {
                     </button>
                   </div>
                   <p className="mt-2 text-sm text-gray-600 flex items-center">
-                    <Image className="w-4 h-4 mr-1" />
+                    <ImageIcon className="w-4 h-4 mr-1" />
                     {uploadedPhoto?.name}
                   </p>
                 </div>
