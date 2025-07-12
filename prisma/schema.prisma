@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id // Auth0 user ID (sub field) - no @default(cuid())
+  name          String?   // User can fill out their display name
+  phone         String?   // Optional phone for contact
+  bio           String?   // User bio/description  
+  address       String?   // User's general location
+  latitude      Float?    // Optional precise location
+  longitude     Float?    // Optional precise location
+  radiusKm      Int       @default(10) // Default 10km radius for viewing requests
+  isVerified    Boolean   @default(false) // Community verification status
+  isAdmin       Boolean   @default(false) // Admin privileges
+  rating        Float     @default(0.0) // Average rating from reviews
+  totalRatings  Int       @default(0) // Number of ratings received
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  helpRequests    HelpRequest[]
+  responses       HelpResponse[]
+  reviews         Review[]     @relation("ReviewsGiven")
+  receivedReviews Review[]     @relation("ReviewsReceived")
+
+  @@map("users")
+}
+
+model Category {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  icon        String?       // Icon name for UI
+  color       String?       // Color for UI
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  
+  helpRequests HelpRequest[]
+
+  @@map("categories")
+}
+
+model HelpRequest {
+  id               String           @id @default(cuid())
+  title            String
+  description      String
+  photoUrl         String?          // Optional photo URL
+  categoryId       String
+  userId           String
+  latitude         Float
+  longitude        Float
+  address          String
+  urgency          UrgencyLevel      @default(LOW)
+  status           RequestStatus     @default(OPEN)
+  isApproved       Boolean?         // null = pending, true = approved, false = denied
+  isHighlighted    Boolean          @default(false) // Admin can highlight approved requests
+  estimatedDuration String?     // e.g., "2 hours", "1 day"
+  skillsNeeded     String[]         // Array of required skills
+  maxHelpers       Int               @default(1)
+  isRecurring      Boolean           @default(false)
+  recurringPattern String?      // e.g., "weekly", "monthly"
+  contactMethod    ContactMethod   @default(IN_APP)
+  phoneNumber      String?
+  emailContact     String?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  expiresAt        DateTime?
+
+  category    Category          @relation(fields: [categoryId], references: [id])
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses   HelpResponse[]
+  reviews     Review[]
+
+  @@map("help_requests")
+}
+
+model HelpResponse {
+  id            String         @id @default(cuid())
+  helpRequestId String
+  userId        String
+  message       String?
+  status        ResponseStatus @default(PENDING)
+  isAccepted    Boolean        @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  helpRequest HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review      Review?
+
+  @@unique([helpRequestId, userId])
+  @@map("help_responses")
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  helpRequestId  String
+  helpResponseId String       @unique
+  reviewerId     String
+  revieweeId     String
+  rating         Int          // 1-5 stars
+  comment        String?
+  isPublic       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  helpRequest  HelpRequest  @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
+  helpResponse HelpResponse @relation(fields: [helpResponseId], references: [id], onDelete: Cascade)
+  reviewer     User         @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee     User         @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RequestStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ResponseStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COMPLETED
+}
+
+enum ContactMethod {
+  IN_APP
+  PHONE
+  EMAIL
+  ANY
+}
