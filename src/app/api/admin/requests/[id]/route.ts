@@ -7,13 +7,14 @@ import { prisma } from "@/lib/prisma";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin();
 
     const { action, highlight } = await request.json();
-    const requestId = params.id;
+    const resolvedParams = await params;
+    const requestId = resolvedParams.id;
 
     const updateData: { isApproved?: boolean; isHighlighted?: boolean } = {};
 
@@ -39,7 +40,6 @@ export async function PATCH(
         user: {
           select: {
             name: true,
-            email: true,
           },
         },
         category: {

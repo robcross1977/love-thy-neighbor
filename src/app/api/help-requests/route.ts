@@ -129,20 +129,27 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const category = searchParams.get("category");
     const urgency = searchParams.get("urgency");
+    const approved = searchParams.get("approved");
     const latitude = searchParams.get("latitude");
     const longitude = searchParams.get("longitude");
     const radius = searchParams.get("radius") || "10"; // km
 
     const skip = (page - 1) * limit;
 
-    let where: any = {
+    const where: Record<string, unknown> = {
       status: "OPEN",
     };
 
     if (category && category !== "all") {
+      // Handle different category name formats
+      let categoryName = category;
+      if (category === "lawn-care") {
+        categoryName = "Lawn Care";
+      }
+
       where.category = {
         name: {
-          contains: category,
+          contains: categoryName,
           mode: "insensitive",
         },
       };
@@ -150,6 +157,15 @@ export async function GET(request: NextRequest) {
 
     if (urgency && urgency !== "all") {
       where.urgency = urgency.toUpperCase();
+    }
+
+    // Filter by approval status
+    if (approved === "true") {
+      where.isApproved = true;
+    } else if (approved === "false") {
+      where.isApproved = false;
+    } else if (approved === "pending") {
+      where.isApproved = null;
     }
 
     // TODO: Add geospatial filtering when we have coordinates

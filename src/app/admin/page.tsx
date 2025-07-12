@@ -179,13 +179,34 @@ export default function AdminPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="verse-fade-in">
-        <div className="verse-container py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">
-              Loading admin dashboard...
-            </p>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+        <div className="verse-container py-20">
+          <div className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl mb-6">
+                <AlertCircle className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                Admin Dashboard
+              </h1>
+              <p className="text-xl text-gray-600">
+                Review and manage help requests
+              </p>
+            </div>
+
+            {/* Loading State */}
+            <div className="text-center py-20">
+              <div className="bg-white rounded-3xl shadow-xl p-12 max-w-md mx-auto">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-green-600 mx-auto mb-6"></div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Loading Dashboard
+                </h3>
+                <p className="text-gray-600">
+                  Please wait while we load your admin dashboard...
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

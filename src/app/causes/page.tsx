@@ -1,384 +1,414 @@
 "use client";
 
-import { useState } from "react";
-import { Heart, DollarSign, Share2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  MapPin,
+  Clock,
+  User,
+  Scissors,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  ArrowRight,
+  Heart,
+} from "lucide-react";
 
-interface Cause {
+interface LawnCareRequest {
   id: string;
   title: string;
   description: string;
-  category: "food" | "medical" | "elderly" | "financial";
-  urgency: "low" | "medium" | "high" | "urgent";
-  goal: number;
-  raised: number;
-  helpersNeeded: number;
-  helpersCommitted: number;
-  location: string;
-  organizer: string;
-  image?: string;
-  updates: string[];
+  photoUrl?: string;
+  address: string;
+  urgency: string;
+  status: string;
+  isApproved?: boolean;
+  isHighlighted: boolean;
+  createdAt: string;
+  estimatedDuration?: string;
+  category: {
+    name: string;
+    icon?: string;
+  };
+  user: {
+    name?: string;
+  };
 }
 
-const mockCauses: Cause[] = [
-  {
-    id: "1",
-    title: "Winter Food Drive for Local Families",
-    description:
-      "Help provide groceries and warm meals for 25 families struggling with food insecurity this winter. We're collecting non-perishable items and funds for fresh produce.",
-    category: "food",
-    urgency: "high",
-    goal: 2500,
-    raised: 1200,
-    helpersNeeded: 15,
-    helpersCommitted: 8,
-    location: "Downtown Community Center",
-    organizer: "Sarah Martinez",
-    updates: [
-      "12 families have already received assistance",
-      "Local grocery store donated 200 lbs of canned goods",
-      "Still need volunteers for food sorting this Saturday",
-    ],
-  },
-  {
-    id: "2",
-    title: "Prescription Fund for Mrs. Johnson",
-    description:
-      "Mrs. Johnson, 78, needs help affording her diabetes medication after losing her insurance coverage. The monthly cost is $340.",
-    category: "medical",
-    urgency: "urgent",
-    goal: 1020, // 3 months worth
-    raised: 680,
-    helpersNeeded: 5,
-    helpersCommitted: 12,
-    location: "Oak Street neighborhood",
-    organizer: "Community Health Volunteers",
-    updates: [
-      "Pharmacy has agreed to hold medication until funds are raised",
-      "Mrs. Johnson's daughter sends her heartfelt thanks",
-      "Only $340 more needed for next month's supply",
-    ],
-  },
-  {
-    id: "3",
-    title: "Yard Work for Elderly Veterans",
-    description:
-      "Monthly lawn care and basic yard maintenance for 8 elderly veterans in our community who can no longer handle these tasks themselves.",
-    category: "elderly",
-    urgency: "medium",
-    goal: 0, // volunteer-based
-    raised: 0,
-    helpersNeeded: 12,
-    helpersCommitted: 4,
-    location: "Various neighborhoods",
-    organizer: "Veterans Support Network",
-    updates: [
-      "Spring cleanup scheduled for next weekend",
-      "Tool lending library available for volunteers",
-      "4 veterans have already received help this month",
-    ],
-  },
-];
+/**
+ * Volunteer page showing available lawn care requests
+ */
+export default function VolunteerPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [requests, setRequests] = useState<LawnCareRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "urgent" | "high" | "medium">(
+    "all"
+  );
 
-const categoryConfig = {
-  food: {
-    icon: "🍞",
-    color: "var(--color-help-urgent)",
-    label: "Food & Hunger",
-  },
-  medical: {
-    icon: "💊",
-    color: "var(--color-help-urgent)",
-    label: "Medical Help",
-  },
-  elderly: {
-    icon: "👴",
-    color: "var(--color-help-high)",
-    label: "Elderly Care",
-  },
-  financial: {
-    icon: "💰",
-    color: "var(--color-help-high)",
-    label: "Financial Aid",
-  },
-};
+  useEffect(() => {
+    loadLawnCareRequests();
+  }, [filter]);
 
-const urgencyConfig = {
-  low: { color: "var(--color-help-low)", label: "Low Priority" },
-  medium: { color: "var(--color-help-medium)", label: "Medium Priority" },
-  high: { color: "var(--color-help-high)", label: "High Priority" },
-  urgent: { color: "var(--color-help-urgent)", label: "Urgent" },
-};
-
-export default function CausesPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [shareMessage, setShareMessage] = useState<string>("");
-
-  const filteredCauses =
-    selectedCategory === "all"
-      ? mockCauses
-      : mockCauses.filter((cause) => cause.category === selectedCategory);
-
-  const handleShare = (cause: Cause, platform: string) => {
-    const message = `Help support: ${
-      cause.title
-    }\n\nGoal: $${cause.goal.toLocaleString()}\nRaised: $${cause.raised.toLocaleString()}\n\nEvery contribution makes a difference! #LoveThyNeighbor #CommunityHelp`;
-
-    const urls = {
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-        window.location.href
-      )}&quote=${encodeURIComponent(message)}`,
-      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-        message
-      )}&url=${encodeURIComponent(window.location.href)}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-        window.location.href
-      )}`,
-    };
-
-    if (urls[platform as keyof typeof urls]) {
-      window.open(
-        urls[platform as keyof typeof urls],
-        "_blank",
-        "width=600,height=400"
+  const loadLawnCareRequests = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/help-requests?category=lawn-care&status=open&approved=true${
+          filter !== "all" ? `&urgency=${filter}` : ""
+        }`
       );
+      const data = await response.json();
+
+      if (data.success) {
+        setRequests(data.data || []);
+      } else {
+        console.error("Error loading requests:", data.error);
+      }
+    } catch (error) {
+      console.error("Error loading requests:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleContribute = (cause: Cause, type: "food" | "money") => {
-    // This would integrate with payment processing or food coordination
+  const handleVolunteer = () => {
+    if (!session?.user) {
+      router.push("/api/auth/signin");
+      return;
+    }
+
+    // For now, just show an alert - in a real app this would create a help response
     alert(
-      `Thank you for wanting to contribute ${type} to "${cause.title}"! Integration with payment/coordination system would go here.`
+      "Thank you for volunteering! The request owner will be notified and can contact you directly."
     );
   };
 
+  const getUrgencyBadge = (urgency: string) => {
+    switch (urgency.toLowerCase()) {
+      case "urgent":
+        return (
+          <div
+            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow-lg"
+            style={{ backgroundColor: "#dc2626", color: "#ffffff" }}
+          >
+            Urgent
+          </div>
+        );
+      case "high":
+        return (
+          <div
+            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow-lg"
+            style={{ backgroundColor: "#ea580c", color: "#ffffff" }}
+          >
+            High Priority
+          </div>
+        );
+      case "medium":
+        return (
+          <div
+            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow-lg"
+            style={{ backgroundColor: "#d97706", color: "#ffffff" }}
+          >
+            Medium Priority
+          </div>
+        );
+      case "low":
+        return (
+          <div
+            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow-lg"
+            style={{ backgroundColor: "#16a34a", color: "#ffffff" }}
+          >
+            Low Priority
+          </div>
+        );
+      default:
+        return (
+          <div
+            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow-lg"
+            style={{ backgroundColor: "#4b5563", color: "#ffffff" }}
+          >
+            {urgency}
+          </div>
+        );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+        <div className="verse-container py-20">
+          <div className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl mb-6">
+                <Heart className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                Volunteer for Lawn Care
+              </h1>
+              <p className="text-xl text-gray-600">
+                Help elderly neighbors in Purcell and Lexington
+              </p>
+            </div>
+
+            {/* Loading State */}
+            <div className="text-center py-20">
+              <div className="bg-white rounded-3xl shadow-xl p-12 max-w-md mx-auto">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-green-600 mx-auto mb-6"></div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Loading Requests
+                </h3>
+                <p className="text-gray-600">
+                  Finding lawn care requests in your area...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="verse-fade-in">
-      {/* Header */}
-      <section className="verse-container py-12">
-        <div className="mx-auto max-w-4xl text-center">
-          <h1
-            className="text-4xl font-bold tracking-tight mb-4"
-            style={{ color: "var(--color-primary)" }}
-          >
-            Neighbors Who Need Help
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Real people in Purcell and Lexington who need support. You can help
-            by contributing food, money, or sharing their story.
-          </p>
-        </div>
-      </section>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+        {/* Header Section */}
+        <section className="relative py-16 md:py-20 overflow-hidden">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;utf8,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23059669%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%227%22%20cy%3D%227%22%20r%3D%227%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-40"></div>
 
-      {/* Category Filter */}
-      <section className="verse-container pb-8">
-        <div className="flex flex-wrap gap-3 justify-center">
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              selectedCategory === "all"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            All Neighbors
-          </button>
-          {Object.entries(categoryConfig).map(([key, config]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedCategory(key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                selectedCategory === key
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {config.icon} {config.label}
-            </button>
-          ))}
-        </div>
-      </section>
+          <div className="verse-container relative">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 text-sm font-medium mb-6">
+                <Heart className="w-4 h-4 mr-2" />
+                Volunteer Opportunities
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                Help Elderly Neighbors with Lawn Care
+              </h1>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Make a difference in your community by helping elderly neighbors
+                in{" "}
+                <span className="font-semibold text-green-700">
+                  Purcell and Lexington
+                </span>{" "}
+                keep their yards beautiful and well-maintained.
+              </p>
+            </div>
+          </div>
+        </section>
 
-      {/* Causes List */}
-      <section className="verse-container pb-16">
-        <div className="grid gap-8 max-w-4xl mx-auto">
-          {filteredCauses.map((cause) => {
-            const category = categoryConfig[cause.category];
-            const urgency = urgencyConfig[cause.urgency];
-            const progressPercentage =
-              cause.goal > 0 ? (cause.raised / cause.goal) * 100 : 0;
-            const helpersPercentage =
-              (cause.helpersCommitted / cause.helpersNeeded) * 100;
+        {/* Filter Section */}
+        <section className="py-8">
+          <div className="verse-container">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex flex-wrap gap-3 justify-center">
+                <button
+                  onClick={() => setFilter("all")}
+                  className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    filter === "all"
+                      ? "bg-green-600 text-white shadow-lg"
+                      : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+                  }`}
+                >
+                  <Scissors className="w-4 h-4 mr-2" />
+                  All Requests
+                </button>
+                <button
+                  onClick={() => setFilter("urgent")}
+                  className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    filter === "urgent"
+                      ? "bg-red-600 text-white shadow-lg"
+                      : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+                  }`}
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Urgent
+                </button>
+                <button
+                  onClick={() => setFilter("high")}
+                  className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    filter === "high"
+                      ? "bg-orange-600 text-white shadow-lg"
+                      : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+                  }`}
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  High Priority
+                </button>
+                <button
+                  onClick={() => setFilter("medium")}
+                  className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    filter === "medium"
+                      ? "bg-yellow-600 text-white shadow-lg"
+                      : "bg-white text-gray-700 hover:bg-gray-50 shadow-md"
+                  }`}
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Medium Priority
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            return (
-              <div key={cause.id} className="verse-card">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{category.icon}</span>
-                      <h2 className="text-xl font-semibold">{cause.title}</h2>
-                      <span
-                        className="px-2 py-1 text-xs font-medium rounded-full"
-                        style={{
-                          backgroundColor: urgency.color + "20",
-                          color: urgency.color,
-                        }}
-                      >
-                        {urgency.label}
-                      </span>
+        {/* Requests Section */}
+        <section className="py-12">
+          <div className="verse-container">
+            <div className="max-w-6xl mx-auto">
+              {requests.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="bg-white rounded-3xl shadow-xl p-12 max-w-2xl mx-auto">
+                    <div className="w-24 h-24 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-8">
+                      <Scissors className="w-12 h-12 text-green-600" />
                     </div>
-                    <p className="text-muted-foreground mb-3">
-                      {cause.description}
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                      No Lawn Care Requests Found
+                    </h3>
+                    <p className="text-gray-600 text-lg mb-8">
+                      {filter === "all"
+                        ? "There are currently no lawn care requests that need volunteers. Check back later!"
+                        : `No ${filter} priority requests at the moment. Try viewing all requests.`}
                     </p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>📍 {cause.location}</span>
-                      <span>👤 {cause.organizer}</span>
-                    </div>
+                    <Link
+                      href="/create"
+                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                    >
+                      <Heart className="w-5 h-5 mr-2" />
+                      Encourage Others to Request Help
+                    </Link>
                   </div>
                 </div>
-
-                {/* Progress Bars */}
-                {cause.goal > 0 && (
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">
-                        Financial Goal
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        ${cause.raised.toLocaleString()} / $
-                        {cause.goal.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${Math.min(progressPercentage, 100)}%`,
-                          backgroundColor: "var(--color-accent)",
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium">Helpers Needed</span>
-                    <span className="text-sm text-muted-foreground">
-                      {cause.helpersCommitted} / {cause.helpersNeeded} committed
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
+              ) : (
+                <div className="grid gap-8">
+                  {requests.map((request) => (
                     <div
-                      className="h-2 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.min(helpersPercentage, 100)}%`,
-                        backgroundColor: "var(--color-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Recent Updates */}
-                {cause.updates.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium mb-2">Recent Updates</h4>
-                    <ul className="space-y-1">
-                      {cause.updates.slice(0, 2).map((update, index) => (
-                        <li
-                          key={index}
-                          className="text-sm text-muted-foreground flex items-start gap-2"
-                        >
-                          <span className="text-primary mt-1">•</span>
-                          {update}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => handleContribute(cause, "food")}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                  >
-                    <Heart className="w-4 h-4" />
-                    Contribute Food
-                  </button>
-
-                  {cause.goal > 0 && (
-                    <button
-                      onClick={() => handleContribute(cause, "money")}
-                      className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors"
+                      key={request.id}
+                      className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-green-100"
                     >
-                      <DollarSign className="w-4 h-4" />
-                      Donate Money
-                    </button>
-                  )}
+                      <div className="p-8">
+                        {/* Header */}
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+                          <div className="flex flex-wrap items-center gap-3">
+                            {getUrgencyBadge(request.urgency)}
+                            {request.isHighlighted && (
+                              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border border-purple-200">
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Featured
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-lg">
+                            {request.category.name}
+                          </div>
+                        </div>
 
-                  <div className="relative">
-                    <button
-                      onClick={() =>
-                        setShareMessage(
-                          shareMessage === cause.id ? "" : cause.id
-                        )
-                      }
-                      className="flex items-center gap-2 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      Share
-                    </button>
+                        {/* Content */}
+                        <div className="grid md:grid-cols-3 gap-6">
+                          <div className="md:col-span-2">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                              {request.title}
+                            </h3>
+                            <p className="text-gray-600 leading-relaxed mb-6">
+                              {request.description}
+                            </p>
 
-                    {shareMessage === cause.id && (
-                      <div className="absolute top-full left-0 mt-2 bg-background border border-border rounded-md shadow-lg p-3 z-10 min-w-[200px]">
-                        <p className="text-sm font-medium mb-2">Share on:</p>
-                        <div className="flex gap-2">
+                            {/* Details */}
+                            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-500 mb-6">
+                              <div className="flex items-center">
+                                <MapPin className="w-4 h-4 mr-2 text-green-600" />
+                                {request.address}
+                              </div>
+                              <div className="flex items-center">
+                                <Calendar className="w-4 h-4 mr-2 text-green-600" />
+                                {new Date(
+                                  request.createdAt
+                                ).toLocaleDateString()}
+                              </div>
+                              <div className="flex items-center">
+                                <User className="w-4 h-4 mr-2 text-green-600" />
+                                {request.user.name || "Anonymous"}
+                              </div>
+                              {request.estimatedDuration && (
+                                <div className="flex items-center">
+                                  <Clock className="w-4 h-4 mr-2 text-green-600" />
+                                  {request.estimatedDuration}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Photo */}
+                          {request.photoUrl && (
+                            <div className="md:col-span-1">
+                              <img
+                                src={request.photoUrl}
+                                alt="Lawn care request"
+                                className="w-full h-48 object-cover rounded-xl shadow-md"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Button */}
+                        <div className="flex justify-end pt-6 border-t border-gray-100">
                           <button
-                            onClick={() => handleShare(cause, "facebook")}
-                            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                            onClick={() => handleVolunteer()}
+                            className="group relative px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
                           >
-                            Facebook
-                          </button>
-                          <button
-                            onClick={() => handleShare(cause, "twitter")}
-                            className="px-3 py-1 text-xs bg-sky-500 text-white rounded hover:bg-sky-600"
-                          >
-                            Twitter
-                          </button>
-                          <button
-                            onClick={() => handleShare(cause, "linkedin")}
-                            className="px-3 py-1 text-xs bg-blue-700 text-white rounded hover:bg-blue-800"
-                          >
-                            LinkedIn
+                            <div className="flex items-center">
+                              <Heart className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                              Volunteer to Help
+                              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity -z-10"></div>
                           </button>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+              )}
+            </div>
+          </div>
+        </section>
 
-      {/* Call to Action */}
-      <section className="verse-container py-16">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2
-            className="text-3xl font-bold mb-6"
-            style={{ color: "var(--color-primary)" }}
-          >
-            Know Someone Who Needs Help?
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            See a neighbor in need? Help organize community support to make a
-            real difference in their life.
-          </p>
-          <button className="verse-button">Start Helping Someone</button>
-        </div>
-      </section>
+        {/* Call to Action */}
+        <section className="py-20">
+          <div className="verse-container">
+            <div className="max-w-4xl mx-auto text-center bg-white rounded-3xl p-12 shadow-xl border border-green-100">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Heart className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                Ready to Make a Difference?
+              </h2>
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                Every act of kindness helps build a stronger, more caring
+                community. Your volunteer work makes a real difference in the
+                lives of elderly neighbors.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => setFilter("urgent")}
+                  className="px-8 py-4 bg-red-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:bg-red-700 transform hover:-translate-y-1 transition-all duration-200"
+                >
+                  Help Urgent Requests
+                </button>
+                <Link
+                  href="/create"
+                  className="px-8 py-4 border-2 border-green-600 text-green-700 font-semibold rounded-xl hover:bg-green-50 transition-all duration-200 hover:shadow-md"
+                >
+                  Know Someone Who Needs Help?
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
