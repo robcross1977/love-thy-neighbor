@@ -240,7 +240,11 @@ The tests exercise:
 
 ## Implementation Plan
 
-- [ ] Set up Playwright project (install, configure, add scripts)
+- [x] Set up Playwright project (install, configure, add scripts)
+  - Installed @playwright/test and @playwright/experimental-ct-react
+  - Created playwright.config.ts with basic config
+  - Added test scripts to package.json
+  - Created tests/example.test.ts and ran successfully
 - [ ] Create test utils (login helper, database seeder)
 - [ ] Implement Authentication tests (1.1 - 1.3)
 - [ ] Implement Homepage tests (2.1 - 2.2)
