@@ -31,9 +31,8 @@ const validateAuthEnvironment = () => {
 const authEnv = validateAuthEnvironment();
 
 export const config = {
-  trustHost:
-    process.env.AUTH_TRUST_HOST === "true" ||
-    process.env.NODE_ENV === "development",
+  // Force trust host in production and development
+  trustHost: true,
   providers: [
     Auth0({
       clientId: authEnv.AUTH0_CLIENT_ID,
@@ -59,6 +58,20 @@ export const config = {
         token.accessToken = account.access_token;
       }
       return token;
+    },
+    redirect({ url, baseUrl }) {
+      // Ensure redirects use HTTPS in production
+      if (process.env.NODE_ENV === "production") {
+        // If the URL is relative, prepend the base URL
+        if (url.startsWith("/")) {
+          return `${baseUrl}${url}`;
+        }
+        // If the URL is absolute but uses HTTP, convert to HTTPS
+        if (url.startsWith("http://")) {
+          return url.replace("http://", "https://");
+        }
+      }
+      return url;
     },
   },
   session: {
