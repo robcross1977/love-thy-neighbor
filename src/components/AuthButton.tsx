@@ -1,10 +1,23 @@
-import { auth, signIn, signOut } from "../../auth";
+"use client";
+
+import { useSession, signIn, signOut } from "next-auth/react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { User } from "lucide-react";
 
-export default async function AuthButton() {
-  const session = await auth();
+/**
+ * Authentication button component that shows sign in/out based on session state
+ */
+export default function AuthButton() {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center space-x-2">
+        <div className="h-8 w-20 bg-gray-200 animate-pulse rounded"></div>
+      </div>
+    );
+  }
 
   if (session) {
     return (
@@ -18,30 +31,16 @@ export default async function AuthButton() {
             <span className="hidden sm:inline">Profile</span>
           </Button>
         </Link>
-        <form
-          action={async () => {
-            "use server";
-            await signOut();
-          }}
-        >
-          <Button type="submit" variant="outline" size="sm">
-            Sign Out
-          </Button>
-        </form>
+        <Button onClick={() => signOut()} variant="outline" size="sm">
+          Sign Out
+        </Button>
       </div>
     );
   }
 
   return (
-    <form
-      action={async () => {
-        "use server";
-        await signIn("google");
-      }}
-    >
-      <Button type="submit" size="sm">
-        Sign In with Google
-      </Button>
-    </form>
+    <Button onClick={() => signIn("auth0")} size="sm">
+      Sign In
+    </Button>
   );
 }

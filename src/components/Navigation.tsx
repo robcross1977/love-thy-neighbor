@@ -1,11 +1,41 @@
+"use client";
+
 import Link from "next/link";
-import { isCurrentUserAdmin } from "@/lib/auth-utils";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 /**
  * Navigation component that shows appropriate links based on user permissions
  */
-export default async function Navigation() {
-  const isAdmin = await isCurrentUserAdmin();
+export default function Navigation() {
+  const { data: session, status } = useSession();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (status === "loading") return;
+
+      if (!session?.user) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/admin/check");
+        const data = await response.json();
+        setIsAdmin(data.isAdmin || false);
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [session, status]);
 
   return (
     <nav className="flex items-center space-x-8 py-3">
@@ -27,7 +57,7 @@ export default async function Navigation() {
       >
         My Requests
       </Link>
-      {isAdmin && (
+      {!loading && isAdmin && (
         <Link
           href="/admin"
           className="text-sm font-medium transition-colors hover:text-foreground/80 text-foreground/60"
